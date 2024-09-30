@@ -29,6 +29,8 @@ type Order struct {
 func main() {
 	r := mux.NewRouter()
 
+	r.Use(auth.AuthMiddleware)
+
 	r.HandleFunc("/checkout", postCheckout).Methods(http.MethodPost)
 
 	// Configuração de CORS

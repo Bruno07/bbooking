@@ -1,6 +1,6 @@
 module github.com/Bruno07/bbooking/checkout
 
-go 1.21.6
+go 1.23.1
 
 require (
 	github.com/gorilla/mux v1.8.1 // indirect

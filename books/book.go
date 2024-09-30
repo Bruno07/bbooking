@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -60,7 +61,7 @@ type BookResult struct {
 
 func main() {
 	r := mux.NewRouter()
-
+	
 	r.HandleFunc("/books", getBooks)
 	r.HandleFunc("/books/{id}", getBook)
 

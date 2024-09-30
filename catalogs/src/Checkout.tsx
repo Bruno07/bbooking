@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { formatDate, formatReal } from './helpers/functions'
 import axios from 'axios'
 import { z } from 'zod'
@@ -6,12 +6,25 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Controller, useForm } from 'react-hook-form'
 import { useParams } from 'react-router-dom'
 import { IMaskInput } from 'react-imask'
+import { useKeycloak } from '@react-keycloak/web';
+
+type TUserInfo = {
+    email: string;
+    email_verified: boolean;
+    family_name: string;
+    given_name: string;
+    name: string;
+    preferred_username: string;
+    sub: string;
+  }
 
 function Checkout() {
     const { id } = useParams()
     const [response, setResponse] = useState([])
     const [loading, setLoading] = useState(true)
     const [message, setMessage] = useState(false)
+    const { keycloak, initialized } = useKeycloak();
+    const [userInfo, setUserInfo] = useState('');
 
     const createCheckoutFormSchema = z.object({
         book_id: z.string(),
@@ -54,16 +67,34 @@ function Checkout() {
         resolver: zodResolver(createCheckoutFormSchema)
     })
 
+    // Enquanto não inicia a sessão, deve mostrar loading...
+  !initialized && <div>Loading...</div>
+
+  // Busca informações do usuário e grava no estado userInfo
+  const fetchUserInfo = useCallback(async () => {
+    if (initialized && keycloak.authenticated) {
+      const { name } = await keycloak.loadUserInfo() as TUserInfo;
+
+      setUserInfo(name);
+    }
+  }, [initialized, keycloak]);
+
+
+    // Desloga o usuário
+    const handleLogout = () => {
+        keycloak.logout({
+            redirectUri: 'http://localhost:5173/'
+        });
+    };
+
     useEffect(() => {
         axios.get(`http://localhost:5000/books/${id}`).then(resp => {
-        console.log(resp.data)
         setResponse(resp.data)
         setLoading(false)
         })
-    }, [])
+    }, [initialized, keycloak, fetchUserInfo])
 
     const onSubmit = (data:any) => {
-        console.log(data)
         axios.post("http://localhost:5001/checkout", data).then(() => {
             setMessage(true)
         }).catch(resp => {
@@ -94,9 +125,13 @@ function Checkout() {
                         <div className="animate-spin rounded-full h-32 w-32 border-t-4 border-b-4 border-teal-700"></div>
                 </div>
             : (
-
                 <div>
-                    <div className='mb-3 pt-5 pb-5 pr-20 pl-20 dark:bg-slate-900 border border-slate-800 rounded-md'>
+                    
+                    <div className='w-full flex justify-end'>
+                        <button onClick={handleLogout} className='p-3 bg-teal-700 hover:bg-teal-800 text-white rounded-md'>LOGOUT</button>
+                    </div>
+
+                    <div className='mt-3 mb-3 pt-5 pb-5 pr-20 pl-20 dark:bg-slate-900 border border-slate-800 rounded-md'>
                         <ul className='text-white text-md uppercase flex space-x-4'>
                             <li><a href="/" className='hover:underline'>Início</a></li>
                             <li>/</li>
@@ -121,7 +156,7 @@ function Checkout() {
                                         <Controller
                                             control={control}
                                             name="document"
-                                             render={({ field: { onChange, onBlur, ref } }) => (
+                                            render={({ field: { onChange, onBlur, ref } }) => (
                                                 <IMaskInput 
                                                     mask={'000.000.000-00'} 
                                                     className={`p-3 w-full border border-slate-700 bg-slate-700 rounded-md placeholder:text-md placeholder:text-zinc-400 text-zinc-400 uppercase ${errors.name ? 'border border-red-600' : ''}`} 
@@ -129,7 +164,7 @@ function Checkout() {
                                                     onBlur={onBlur}
                                                     onChange={onChange}
                                                     inputRef={ref} />
-                                             )} />
+                                            )} />
 
                                         { errors.document && <div className="text-red-600">{errors.document.message}</div> }
                                     </div>
